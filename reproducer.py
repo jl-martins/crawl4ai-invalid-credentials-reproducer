@@ -5,7 +5,7 @@ from typing import Any, Self, override
 from crawl4ai import CacheMode, CrawlerRunConfig
 from crawl4ai.async_crawler_strategy import AsyncPlaywrightCrawlerStrategy
 from crawl4ai.async_webcrawler import AsyncWebCrawler
-from playwright.async_api import Page
+from playwright.async_api import Page, Request, Route
 from scrapy import signals
 from scrapy.crawler import Crawler
 from scrapy.http.response import Response
@@ -30,13 +30,19 @@ class BasicAuthSpider(Spider):
         self.http_user = authentication.username
         self.http_pass = authentication.password
         self.http_auth_domain = self.allowed_domains[0]
+        self.auth_header = BasicAuthSpider.get_basic_auth_header(
+            authentication.username,
+            authentication.password,
+        )
+
+        async def basic_auth_handler(route: Route, request: Request) -> None:
+            await route.continue_(
+                headers={**request.headers, "Authorization": self.auth_header}
+            )
 
         # Set up the crawler strategy with authentication
         async def on_page_context_created(page: Page, **kwargs):
-            credentials = base64.b64encode(
-                f"{self.http_user}:{self.http_pass}".encode()
-            ).decode()
-            await page.set_extra_http_headers({"Authorization": f"Basic {credentials}"})
+            await page.route(f"https://{self.http_auth_domain}/**", basic_auth_handler)
 
         self.crawler_strategy = AsyncPlaywrightCrawlerStrategy(verbose=True)
         self.crawler_strategy.set_hook(
@@ -45,6 +51,11 @@ class BasicAuthSpider(Spider):
         self.crawl4ai_crawler = AsyncWebCrawler(
             verbose=True, crawler_strategy=self.crawler_strategy
         )
+
+    @staticmethod
+    def get_basic_auth_header(username: str, password: str) -> str:
+        credentials = base64.b64encode(f"{username}:{password}".encode()).decode()
+        return f"Basic {credentials}"
 
     @override
     @classmethod
