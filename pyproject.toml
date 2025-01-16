@@ -1,0 +1,9 @@
+[project]
+name = "crawl4ai-invalid-credentials-reproducer"
+version = "0.1.0"
+description = "Reproducer for an ERR_INVALID_AUTH_CREDENTIALS error when setting basic credentials as suggested in https://github.com/unclecode/crawl4ai/issues/360#issuecomment-2561842368"
+requires-python = ">=3.12"
+dependencies = [
+    "crawl4ai==0.4.247",
+    "scrapy==2.12.0",
+]
